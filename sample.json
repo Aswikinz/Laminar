@@ -1,0 +1,267 @@
+{
+    "process_id": "full_customer_support_process",
+    "process_name": "Full Customer Support Process",
+    "process_roles": [
+        {
+            "role_id": "customer_support_chatbot",
+            "role_title": "Customer Support Chatbot",
+            "role_notes": [
+                "Handles initial customer interactions.",
+                "Automates simple complaint resolutions."
+            ]
+        },
+        {
+            "role_id": "customer_support_specialist",
+            "role_title": "Customer Support Specialist"
+        },
+        {
+            "role_id": "customer_support_supervisor",
+            "role_title": "Customer Support Supervisor",
+            "role_notes": [
+                "Oversees complex complaint resolutions.",
+                "Ensures customer satisfaction."
+            ]
+        },
+        {
+            "role_id": "software_developer",
+            "role_title": "Software Developer"
+        },
+        {
+            "role_id": "quality_assurance",
+            "role_title": "Quality Assurance",
+            "role_notes": [
+                "Verifies the quality of solutions.",
+                "Ensures compliance with standards."
+            ]
+        },
+        {
+            "role_id": "customer",
+            "role_title": "Customer"
+        },
+        {
+            "role_id": "product_manager",
+            "role_title": "Product Manager"
+        }
+    ],
+    "process_steps": [
+        {
+            "step_id": "SYSTEM::START",
+            "step_title": "Start",
+            "step_notes": [
+                "Initiates the process.",
+                "Prepares the system for receiving complaints."
+            ],
+            "manual_system": "system_name",
+            "user_role_code_user_id_user_name": "chatbot_user",
+            "password_in_test_system": "test_password",
+            "users_name": "Chatbot",
+            "program_id_t_code_screen_name": "start_screen"
+        },
+        {
+            "step_id": "receive_complaint",
+            "step_role": "customer_support_chatbot",
+            "step_title": "Receive complaint",
+            "step_description": "Receive complaint from the customer",
+            "next_step": "CONDITION::complaint_condition",
+            "step_notes": [
+                "Capture all necessary details from the customer.",
+                "Ensure data accuracy."
+            ],
+            "manual_system": "system_name",
+            "user_role_code_user_id_user_name": "chatbot_user",
+            "password_in_test_system": "",
+            "users_name": "Chatbot",
+            "program_id_t_code_screen_name": "receive_complaint_screen"
+        },
+        {
+            "step_id": "CONDITION::complaint_condition",
+            "step_role": "customer_support_chatbot",
+            "step_title": "Eligible for automated processing?",
+            "step_description": "Checking if the process is eligible for automated processing",
+            "yes_when": "The issue is related to a FAQ article, KB article or does not disrupt user's daily operations",
+            "no_when": "The issue is disrupting daily operations or the user insists on contact with the operator",
+            "next_step_yes": "complaint_autoprocess",
+            "next_step_no": "complaint_human_process",
+            "step_notes": [
+                "Evaluate the complexity of the complaint.",
+                "Determine if automation is feasible."
+            ],
+            "manual_system": "system_name",
+            "user_role_code_user_id_user_name": "chatbot_user",
+            "password_in_test_system": "",
+            "users_name": "Chatbot",
+            "program_id_t_code_screen_name": "condition_screen"
+        },
+        {
+            "step_id": "complaint_autoprocess",
+            "step_role": "customer_support_chatbot",
+            "step_title": "Automated Processing",
+            "step_description": "Process the complaint automatically",
+            "next_step": "CONDITION::autoprocess_success",
+            "manual_system": "system_name",
+            "user_role_code_user_id_user_name": "chatbot_user",
+            "password_in_test_system": "",
+            "users_name": "Chatbot",
+            "program_id_t_code_screen_name": "autoprocess_screen"
+        },
+        {
+            "step_id": "CONDITION::autoprocess_success",
+            "step_role": "customer_support_chatbot",
+            "step_title": "Was the automated process successful?",
+            "step_description": "Determine if the automated process resolved the issue",
+            "next_step_yes": "SYSTEM::END",
+            "next_step_no": "complaint_human_process",
+            "step_notes": [
+                "Verify the outcome of the automated process.",
+                "Log any errors encountered."
+            ],
+            "manual_system": "system_name",
+            "user_role_code_user_id_user_name": "chatbot_user",
+            "password_in_test_system": "",
+            "users_name": "Chatbot",
+            "program_id_t_code_screen_name": "autoprocess_success_screen"
+        },
+        {
+            "step_id": "complaint_human_process",
+            "step_role": "customer_support_specialist",
+            "step_title": "Human Processing",
+            "step_description": "A specialist processes the complaint",
+            "next_step": "CONDITION::escalation_needed",
+            "step_notes": [
+                "Review the complaint details thoroughly.",
+                "Provide a personalized response."
+            ],
+            "manual_system": "manual",
+            "user_role_code_user_id_user_name": "specialist_user",
+            "password_in_test_system": "specialist_password",
+            "users_name": "Specialist",
+            "program_id_t_code_screen_name": "human_process_screen"
+        },
+        {
+            "step_id": "CONDITION::escalation_needed",
+            "step_role": "customer_support_specialist",
+            "step_title": "Is escalation needed?",
+            "step_description": "Determine if the issue needs to be escalated to a supervisor",
+            "next_step_yes": "escalate_to_supervisor",
+            "next_step_no": "CONDITION::customer_confirmation",
+            "manual_system": "manual",
+            "user_role_code_user_id_user_name": "specialist_user",
+            "password_in_test_system": "",
+            "users_name": "Specialist",
+            "program_id_t_code_screen_name": "escalation_condition_screen"
+        },
+        {
+            "step_id": "escalate_to_supervisor",
+            "step_role": "customer_support_supervisor",
+            "step_title": "Supervisor Review",
+            "step_description": "Supervisor reviews the complaint",
+            "next_step": "CONDITION::supervisor_resolution",
+            "step_notes": [
+                "Assess the situation for potential escalations.",
+                "Ensure all previous steps were followed correctly."
+            ],
+            "manual_system": "manual",
+            "user_role_code_user_id_user_name": "supervisor_user",
+            "password_in_test_system": "supervisor_password",
+            "users_name": "Supervisor",
+            "program_id_t_code_screen_name": "supervisor_review_screen"
+        },
+        {
+            "step_id": "CONDITION::supervisor_resolution",
+            "step_role": "customer_support_supervisor",
+            "step_title": "Can the supervisor resolve the issue?",
+            "step_description": "Determine if the supervisor can resolve the issue",
+            "next_step_yes": "CONDITION::customer_confirmation",
+            "next_step_no": "forward_to_developer",
+            "manual_system": "manual",
+            "user_role_code_user_id_user_name": "supervisor_user",
+            "password_in_test_system": "",
+            "users_name": "Supervisor",
+            "program_id_t_code_screen_name": "supervisor_resolution_screen"
+        },
+        {
+            "step_id": "forward_to_developer",
+            "step_role": "software_developer",
+            "step_title": "Developer Intervention",
+            "step_description": "Developer works on the issue",
+            "next_step": "qa_review",
+            "manual_system": "manual",
+            "user_role_code_user_id_user_name": "developer_user",
+            "password_in_test_system": "developer_password",
+            "users_name": "Developer",
+            "program_id_t_code_screen_name": "developer_intervention_screen"
+        },
+        {
+            "step_id": "qa_review",
+            "step_role": "quality_assurance",
+            "step_title": "Quality Assurance Review",
+            "step_description": "QA reviews the solution",
+            "next_step": "CONDITION::qa_approval",
+            "step_notes": [
+                "Conduct thorough testing of the solution.",
+                "Document any issues found during testing."
+            ],
+            "manual_system": "manual",
+            "user_role_code_user_id_user_name": "qa_user",
+            "password_in_test_system": "qa_password",
+            "users_name": "QA",
+            "program_id_t_code_screen_name": "qa_review_screen"
+        },
+        {
+            "step_id": "CONDITION::qa_approval",
+            "step_role": "quality_assurance",
+            "step_title": "Is the fix approved by QA?",
+            "step_description": "Determine if the QA approves the fix",
+            "next_step_yes": "CONDITION::customer_confirmation",
+            "next_step_no": "forward_to_developer",
+            "manual_system": "manual",
+            "user_role_code_user_id_user_name": "qa_user",
+            "password_in_test_system": "",
+            "users_name": "QA",
+            "program_id_t_code_screen_name": "qa_approval_screen"
+        },
+        {
+            "step_id": "CONDITION::customer_confirmation",
+            "step_role": "customer",
+            "step_title": "Is the issue resolved to the customer's satisfaction?",
+            "step_description": "Check if the customer confirms the issue is resolved",
+            "next_step_yes": "SYSTEM::END",
+            "next_step_no": "SYSTEM::ABORT",
+            "step_notes": [
+                "Gather feedback from the customer.",
+                "Ensure the customer is fully satisfied with the resolution."
+            ],
+            "manual_system": "manual",
+            "user_role_code_user_id_user_name": "customer_user",
+            "password_in_test_system": "",
+            "users_name": "Customer",
+            "program_id_t_code_screen_name": "customer_confirmation_screen"
+        },
+        {
+            "step_id": "SYSTEM::END",
+            "step_title": "End",
+            "step_notes": [
+                "Conclude the process.",
+                "Prepare for any follow-up actions if necessary."
+            ],
+            "manual_system": "system_name",
+            "user_role_code_user_id_user_name": "chatbot_user",
+            "password_in_test_system": "",
+            "users_name": "Chatbot",
+            "program_id_t_code_screen_name": "end_screen"
+        },
+        {
+            "step_id": "SYSTEM::ABORT",
+            "step_title": "Abort",
+            "step_notes": [
+                "Terminate the process prematurely.",
+                "Log the reason for termination."
+            ],
+            "manual_system": "system_name",
+            "user_role_code_user_id_user_name": "chatbot_user",
+            "password_in_test_system": "",
+            "users_name": "Chatbot",
+            "program_id_t_code_screen_name": "abort_screen"
+        }
+    ]
+}
