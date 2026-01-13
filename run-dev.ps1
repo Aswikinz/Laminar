@@ -1,23 +1,18 @@
-$inputFile = "./MultiFlow.xlsm"
-$outputDir = "./output"
+# PowerShell development launcher script
+param(
+    [string]$InputFile = ".\ProcessFlow.xlsx",
+    [string]$OutputDir = ".\output"
+)
 
-# Create a temporary input directory
-$tempInputDir = "./input"
-if (-Not (Test-Path -Path $tempInputDir)) {
-    New-Item -ItemType Directory -Path $tempInputDir | Out-Null
-}
+$ErrorActionPreference = "Stop"
 
-# Copy the input file to the temporary input directory
-Copy-Item -Path $inputFile -Destination $tempInputDir
-
-# Remove and recreate the output directory
-if (Test-Path -Path $outputDir) {
-    Remove-Item -Recurse -Force -Path $outputDir
-}
-New-Item -ItemType Directory -Path $outputDir | Out-Null
+# Create directories
+New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
 # Build the Docker image
-docker build -t xls2png-converter ./docker
+Write-Host "Building Docker image..."
+docker build -t xls2png-converter .\docker
 
-# Run main.py with the input file as parameter
-python main.py $inputFile
+# Run the CLI with the input file
+Write-Host "Processing $InputFile..."
+python -m laminar.cli $InputFile -o $OutputDir -v
