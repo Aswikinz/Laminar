@@ -2,21 +2,18 @@
 
 **Business Process Analysis and Visualization Tool**
 
-Laminar converts Excel spreadsheets containing business process descriptions into interactive Mermaid flowchart diagrams using Claude AI.
+Laminar converts Excel spreadsheets containing business process descriptions into interactive Mermaid flowchart diagrams.
 
 ![Sample Output](sample.png)
 
 ## Features
 
-- **AI-Powered Analysis**: Uses Claude (Anthropic) to intelligently parse business process data
-- **Visual + Data Processing**: Analyzes both spreadsheet images and CSV data for comprehensive understanding
-- **Professional Diagrams**: Generates Mermaid flowcharts with:
-  - Role-based swimlanes
-  - Color-coded decision paths (green/red for Yes/No)
-  - Stadium-shaped Start/End nodes
-  - Diamond-shaped decision points
-  - Proper styling matching business standards
-- **Batch Processing**: Process multiple Excel files or entire directories
+- **Smart Extraction**: Two-stage approach for optimal results
+  - **Template Parser**: Fast, free parsing for compliant Excel files
+  - **AI Fallback**: Claude AI for complex/non-standard files
+- **No Docker Required**: Pure Python implementation (Docker optional for legacy mode)
+- **Professional Diagrams**: Mermaid flowcharts with swimlanes, color-coded paths
+- **Batch Processing**: Process multiple sheets/files at once
 - **GUI & CLI**: Desktop application and command-line interface
 
 ## Installation
@@ -24,8 +21,7 @@ Laminar converts Excel spreadsheets containing business process descriptions int
 ### Prerequisites
 
 - Python 3.10+
-- Docker (for Excel-to-image conversion)
-- Anthropic API key
+- Anthropic API key (only needed for AI fallback)
 
 ### Install from source
 
@@ -36,189 +32,211 @@ cd laminar
 
 # Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # Install the package
 pip install -e .
-
-# For development
-pip install -e ".[dev]"
 ```
 
-### Build Docker image
-
-The Docker image is used to convert Excel files to PNG images:
+## Quick Start
 
 ```bash
-docker build -t xls2png-converter ./docker
+# Process an Excel file (auto-detects best method)
+laminar process.xlsx
+
+# Force template-only mode (no API needed)
+laminar process.xlsx --force-template
+
+# Force AI mode (requires API key)
+laminar process.xlsx --force-ai
 ```
+
+## Excel Template Format
+
+For best results (fast, free, no API needed), structure your Excel file like this:
+
+| Step # | Role | Step Title | Description | Next Step | Condition? | Yes→ | No→ | Notes |
+|--------|------|------------|-------------|-----------|------------|------|-----|-------|
+| 1 | Officer | Receive report | Get customer list | 2 | | | | |
+| 2 | Officer | Review data | Check completeness | 3 | | | | |
+| 3 | | Data complete? | | | Yes | 4 | 2 | Decision |
+| 4 | Manager | Approve | Final approval | 5 | | | | |
+| 5 | | Approved? | | | Yes | END | 6 | |
+| 6 | Officer | Revise | Make corrections | 3 | | | | |
+
+### Required Columns
+
+| Column | Aliases | Description |
+|--------|---------|-------------|
+| **Step #** | step, id, no | Unique step identifier |
+| **Role** | actor, responsible, owner | Who performs this step |
+| **Step Title** | title, name, action | Short description of the step |
+
+### Optional Columns
+
+| Column | Aliases | Description |
+|--------|---------|-------------|
+| Description | desc, details | Detailed step description |
+| Next Step | next, goes to, -> | Next step for sequential flow |
+| Condition? | decision, is condition | Mark "Yes" for decision points |
+| Yes→ | yes next, if yes | Next step when condition is true |
+| No→ | no next, if no | Next step when condition is false |
+| Notes | comments, remarks | Additional information |
+
+### Special Values
+
+- `END` - Process completion (success)
+- `ABORT` - Process termination (failure/rejection)
+- `START` - Process start (auto-detected if not specified)
+
+### Tips
+
+- Leave **Role** empty for decision/condition steps
+- Steps ending with `?` are auto-detected as conditions
+- Use step numbers or titles in Next Step columns
+- Conditions are auto-detected if Yes→ or No→ have values
 
 ## Configuration
 
 ### Environment Variables
 
-Create a `.env` file in the project root (copy from `.env.example`):
+Create a `.env` file (only needed for AI fallback):
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set your Anthropic API key:
-
 ```env
+# Only required if using AI fallback
 LAMINAR_ANTHROPIC_API_KEY=your-api-key-here
+
+# Optional settings
+LAMINAR_CLAUDE_MODEL=claude-sonnet-4-20250514
+LAMINAR_OUTPUT_DIR=output
+LAMINAR_LOG_LEVEL=INFO
 ```
-
-### Available Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LAMINAR_ANTHROPIC_API_KEY` | - | Your Anthropic API key (required) |
-| `LAMINAR_CLAUDE_MODEL` | `claude-sonnet-4-20250514` | Claude model to use |
-| `LAMINAR_CLAUDE_MAX_TOKENS` | `8192` | Maximum response tokens |
-| `LAMINAR_CLAUDE_TEMPERATURE` | `0.0` | Response temperature (0-1) |
-| `LAMINAR_EXCEL_MODE` | `both` | Processing mode: `image`, `csv`, or `both` |
-| `LAMINAR_OUTPUT_DIR` | `output` | Default output directory |
-| `LAMINAR_LOG_LEVEL` | `INFO` | Logging level |
 
 ## Usage
 
-### Command Line Interface
+### Command Line
 
 ```bash
-# Process a single Excel file
+# Auto mode (template first, AI fallback)
 laminar process.xlsx
 
-# Specify output directory
+# Template only (fast, free, fails if not compliant)
+laminar process.xlsx --force-template
+
+# AI only (flexible, requires API key)
+laminar process.xlsx --force-ai
+
+# Specific sheet
+laminar process.xlsx --sheet "Sheet1"
+
+# Custom output directory
 laminar process.xlsx -o ./diagrams
 
 # Verbose output
 laminar process.xlsx -v
-
-# Show help
-laminar --help
 ```
 
-### Graphical Interface
+### GUI
 
 ```bash
-# Launch the GUI
 laminar-gui
-
-# Or run directly
-python -m laminar.ui.app
 ```
-
-### Development Script
-
-```bash
-# Linux/Mac
-./run-dev.sh ProcessFlow.xlsx
-
-# Windows PowerShell
-./run-dev.ps1 -InputFile ProcessFlow.xlsx
-```
-
-## Input Format
-
-Laminar expects Excel spreadsheets with business process descriptions. Each sheet should contain:
-
-- **Process steps** with titles and descriptions
-- **Roles/actors** responsible for each step
-- **Conditions/decisions** with Yes/No outcomes
-- **Notes** (referenced with [1], [2], etc.)
-
-See `sample.json` for the expected JSON structure that Claude generates.
 
 ## Output
 
 For each Excel sheet, Laminar generates:
 
-1. **`{sheet}_description.json`** - Structured JSON representation of the process
-2. **`{sheet}_flowchart.mmd`** - Mermaid diagram definition
+1. **`{sheet}_process.json`** - Structured process data
+2. **`{sheet}_flowchart.mmd`** - Mermaid diagram
 
-### Viewing Mermaid Diagrams
-
-Mermaid diagrams can be viewed using:
+### Viewing Diagrams
 
 - [Mermaid Live Editor](https://mermaid.live/)
 - VS Code with Mermaid extension
-- GitHub/GitLab markdown rendering
-- Any Mermaid-compatible viewer
+- GitHub/GitLab markdown preview
+
+## How It Works
+
+```
+Excel File
+    │
+    ▼
+┌─────────────────────┐
+│  Template Validator │ ◄── Check if file matches expected format
+└─────────────────────┘
+    │
+    ├─── Compliant (>70% confidence)
+    │         │
+    │         ▼
+    │   ┌─────────────────┐
+    │   │ Template Parser │ ◄── Fast, free, deterministic
+    │   └─────────────────┘
+    │
+    └─── Not Compliant
+              │
+              ▼
+        ┌─────────────┐
+        │ Claude AI   │ ◄── Flexible, handles any format
+        └─────────────┘
+              │
+              ▼
+        ┌─────────────┐
+        │   Process   │ ◄── Unified data model
+        └─────────────┘
+              │
+              ▼
+        ┌─────────────┐
+        │   Mermaid   │ ◄── Generate flowchart
+        └─────────────┘
+```
 
 ## Project Structure
 
 ```
-laminar/
-├── src/laminar/
-│   ├── __init__.py
-│   ├── cli.py              # Command-line interface
-│   ├── config.py           # Configuration management
-│   ├── core/
-│   │   ├── constants.py    # Enums and constants
-│   │   └── models.py       # Data models (Process, Role, Step)
-│   ├── services/
-│   │   ├── ai_analyzer.py      # Claude AI integration
-│   │   ├── excel_processor.py  # Excel/CSV processing
-│   │   └── mermaid_generator.py # Diagram generation
-│   ├── ui/
-│   │   └── app.py          # Tkinter GUI
-│   └── utils/
-│       ├── docker.py       # Docker utilities
-│       ├── image.py        # Image encoding
-│       └── logging.py      # Logging setup
-├── docker/                 # Docker image for XLSX conversion
-├── tests/                  # Test suite
-├── sample.json            # Sample process JSON
-├── sample.png             # Sample diagram output
-└── pyproject.toml         # Project configuration
+src/laminar/
+├── cli.py                    # Command-line interface
+├── config.py                 # Configuration management
+├── core/
+│   ├── constants.py          # Enums and constants
+│   ├── models.py             # Data models (Process, Role, Step)
+│   └── template.py           # Template schema definition
+├── services/
+│   ├── process_extractor.py  # Main extraction orchestrator
+│   ├── template_parser.py    # Direct template parsing
+│   ├── ai_analyzer.py        # Claude AI integration
+│   ├── excel_processor.py    # Excel/CSV processing
+│   └── mermaid_generator.py  # Diagram generation
+├── ui/
+│   └── app.py                # Tkinter GUI
+└── utils/
+    ├── image.py              # Image utilities
+    └── logging.py            # Logging setup
 ```
-
-## How It Works
-
-1. **Excel Conversion**: Docker container converts XLSX to PNG images using LibreOffice and ImageMagick
-2. **Data Extraction**: Pandas extracts sheet data as CSV
-3. **AI Analysis**: Claude analyzes both the visual image and CSV data to understand the business process
-4. **JSON Generation**: Structured JSON is created with process steps, roles, and conditions
-5. **Diagram Creation**: Mermaid flowchart is generated with proper styling and swimlanes
-
-## Claude AI Capabilities Used
-
-- **Vision Analysis**: Examines spreadsheet layout and visual relationships
-- **Structured Output**: Generates well-formed JSON matching the template
-- **Process Understanding**: Identifies implicit conditions and process logic
-- **Note Matching**: Links numbered references to their definitions
 
 ## Development
 
-### Running Tests
-
 ```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
 pytest
-```
 
-### Type Checking
-
-```bash
+# Type checking
 mypy src/laminar
-```
 
-### Linting
-
-```bash
+# Linting
 ruff check src/laminar
-ruff format src/laminar
 ```
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE)
 
 ## Author
 
 Aswin Semiya
-
-## Acknowledgments
-
-- [Anthropic](https://anthropic.com/) for Claude AI
-- [Mermaid](https://mermaid.js.org/) for diagram rendering

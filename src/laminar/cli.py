@@ -1,17 +1,12 @@
 """Command-line interface for Laminar."""
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 from laminar import __version__
 from laminar.config import get_settings
-from laminar.core.models import parse_json_to_process
-from laminar.services.ai_analyzer import AIAnalyzer, AIAnalysisError
-from laminar.services.excel_processor import ExcelProcessor, ExcelProcessingError
-from laminar.services.mermaid_generator import generate_mermaid_from_process, save_mermaid_chart
-from laminar.utils.docker import DockerConverter, DockerConversionError, is_docker_available
+from laminar.services.process_extractor import ProcessExtractor, ProcessExtractionError, extract_and_generate
 from laminar.utils.logging import setup_logging, get_logger
 
 logger = get_logger("cli")
@@ -29,9 +24,11 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  laminar process.xlsx
-  laminar process.xlsx -o ./diagrams
-  laminar process.xlsx --verbose
+  laminar process.xlsx                    # Auto-detect: template or AI
+  laminar process.xlsx -o ./diagrams      # Specify output directory
+  laminar process.xlsx --force-ai         # Always use AI (skip template)
+  laminar process.xlsx --force-template   # Only use template (fail if not compliant)
+  laminar process.xlsx --sheet "Sheet1"   # Process specific sheet
         """,
     )
 
@@ -50,6 +47,14 @@ Examples:
     )
 
     parser.add_argument(
+        "-s",
+        "--sheet",
+        type=str,
+        default=None,
+        help="Process specific sheet (default: all sheets)",
+    )
+
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -62,100 +67,20 @@ Examples:
         version=f"%(prog)s {__version__}",
     )
 
-    parser.add_argument(
-        "--skip-docker-check",
+    # Extraction mode options
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--force-ai",
         action="store_true",
-        help="Skip Docker availability check",
+        help="Always use AI extraction (skip template parsing)",
+    )
+    mode_group.add_argument(
+        "--force-template",
+        action="store_true",
+        help="Only use template parsing (fail if file doesn't match template)",
     )
 
     return parser
-
-
-def process_excel_file(
-    input_file: Path,
-    output_dir: Path,
-    *,
-    verbose: bool = False,
-) -> int:
-    """Process an Excel file and generate Mermaid diagrams.
-
-    Args:
-        input_file: Path to the Excel file.
-        output_dir: Directory for output files.
-        verbose: Enable verbose logging.
-
-    Returns:
-        Exit code (0 for success, non-zero for failure).
-    """
-    settings = get_settings()
-
-    # Ensure output directory exists
-    output_dir.mkdir(parents=True, exist_ok=True)
-    temp_dir = output_dir / "temp"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-
-    # Initialize services
-    docker_converter = DockerConverter()
-    excel_processor = ExcelProcessor()
-    ai_analyzer = AIAnalyzer()
-
-    try:
-        # Convert XLSX to images
-        logger.info("Converting Excel file to images...")
-        png_files = docker_converter.convert_xlsx_to_images(input_file, temp_dir)
-
-        # Extract CSV data
-        logger.info("Extracting sheet data...")
-        csv_data = excel_processor.extract_sheets_as_csv(input_file, temp_dir)
-
-        logger.info("Found %d sheets: %s", len(csv_data), ", ".join(csv_data.keys()))
-
-        # Process each sheet
-        for idx, (sheet_name, csv_content) in enumerate(csv_data.items()):
-            if idx >= len(png_files):
-                logger.warning(
-                    "No image found for sheet '%s', skipping", sheet_name
-                )
-                continue
-
-            logger.info("Processing sheet: %s", sheet_name)
-
-            # Analyze with AI
-            json_result = ai_analyzer.analyze_sheet(
-                csv_data=csv_content,
-                sheet_name=sheet_name,
-                image_path=png_files[idx],
-            )
-
-            # Save intermediate JSON
-            json_path = output_dir / f"{sheet_name}_description.json"
-            json_path.write_text(json.dumps(json_result, indent=2))
-
-            # Generate Mermaid diagram
-            process = parse_json_to_process(json_result)
-            mermaid_chart = generate_mermaid_from_process(process)
-
-            # Save Mermaid chart
-            mermaid_path = output_dir / f"{sheet_name}_flowchart.mmd"
-            save_mermaid_chart(mermaid_chart, mermaid_path)
-
-            logger.info("Generated: %s", mermaid_path)
-
-        logger.info("Processing complete! Output saved to: %s", output_dir)
-        return 0
-
-    except DockerConversionError as e:
-        logger.error("Docker conversion failed: %s", e)
-        return 1
-    except ExcelProcessingError as e:
-        logger.error("Excel processing failed: %s", e)
-        return 2
-    except AIAnalysisError as e:
-        logger.error("AI analysis failed: %s", e)
-        return 3
-    except Exception as e:
-        logger.exception("Unexpected error: %s", e)
-        return 4
 
 
 def main() -> int:
@@ -177,26 +102,65 @@ def main() -> int:
         logger.error("Input file not found: %s", input_file)
         return 1
 
-    if not input_file.suffix.lower() in {".xlsx", ".xlsm", ".xls"}:
+    if input_file.suffix.lower() not in {".xlsx", ".xlsm", ".xls"}:
         logger.error("Invalid file type. Expected Excel file (.xlsx, .xlsm, .xls)")
-        return 1
-
-    # Check Docker availability
-    if not args.skip_docker_check and not is_docker_available():
-        logger.error(
-            "Docker is not available. Please install Docker and ensure it's running."
-        )
         return 1
 
     # Determine output directory
     output_dir = args.output or get_settings().output_dir
     output_dir = Path(output_dir).resolve()
 
-    return process_excel_file(
-        input_file=input_file.resolve(),
-        output_dir=output_dir,
-        verbose=args.verbose,
-    )
+    logger.info("Processing: %s", input_file.name)
+    logger.info("Output directory: %s", output_dir)
+
+    if args.force_ai:
+        logger.info("Mode: AI extraction (forced)")
+    elif args.force_template:
+        logger.info("Mode: Template parsing only")
+    else:
+        logger.info("Mode: Auto (template with AI fallback)")
+
+    try:
+        results = extract_and_generate(
+            xlsx_path=input_file.resolve(),
+            output_dir=output_dir,
+            sheet_name=args.sheet,
+            force_ai=args.force_ai,
+        )
+
+        # Print summary
+        print()
+        print("=" * 50)
+        print("PROCESSING COMPLETE")
+        print("=" * 50)
+
+        for sheet_result in results["sheets"]:
+            sheet = sheet_result["sheet"]
+            if sheet_result.get("success"):
+                method = sheet_result.get("metadata", {}).get("method", "unknown")
+                confidence = sheet_result.get("metadata", {}).get("confidence", 0) * 100
+                print(f"  [OK] {sheet}")
+                print(f"       Method: {method} ({confidence:.0f}% confidence)")
+                print(f"       -> {sheet_result.get('mermaid_path', 'N/A')}")
+            else:
+                print(f"  [FAIL] {sheet}")
+                print(f"       Error: {sheet_result.get('error', 'Unknown error')}")
+
+        print()
+
+        if results["success"]:
+            logger.info("All sheets processed successfully!")
+            return 0
+        else:
+            logger.warning("Some sheets failed to process")
+            return 1
+
+    except ProcessExtractionError as e:
+        logger.error("Extraction failed: %s", e)
+        return 2
+    except Exception as e:
+        logger.exception("Unexpected error: %s", e)
+        return 3
 
 
 if __name__ == "__main__":
