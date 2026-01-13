@@ -503,12 +503,12 @@ class SettingsDialog:
         frame = ttk.Frame(self.dialog, padding=10)
         frame.pack(fill="both", expand=True)
 
-        ttk.Label(frame, text="OpenAI API Key:").grid(
+        ttk.Label(frame, text="Anthropic API Key:").grid(
             row=0, column=0, sticky="w", pady=5
         )
 
         self.api_key_var = tk.StringVar(
-            value=self.settings.openai_api_key.get_secret_value()
+            value=self.settings.anthropic_api_key.get_secret_value()
         )
         api_key_entry = ttk.Entry(
             frame, textvariable=self.api_key_var, width=50, show="*"
